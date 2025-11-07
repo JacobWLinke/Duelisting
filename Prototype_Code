@@ -1,0 +1,323 @@
+A Note on Code Generation: While an AI tool assisted in generating initial code and documentation drafts, 
+I (JacobWLinke) personally ensure that I understand and vet code integrated into Duelisting. 
+I am the architect and maintainer, and I take full responsibility for its functionality and security. 
+
+import React, { useState, useEffect, createContext, useContext } from 'react';
+const AuthContext = createContext(null);
+
+// Custom hook to manage mock authentication
+const useAuth = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Simulate initial auth check
+  useEffect(() => {
+    
+    const storedUser = localStorage.getItem('duel_vault_user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
+  }, []);
+
+  const signIn = (username) => {
+    
+    const mockUser = { id: username, name: username, role: username === 'Admin' ? 'admin' : 'user' };
+    localStorage.setItem('duel_vault_user', JSON.stringify(mockUser));
+    setUser(mockUser);
+  };
+
+  const signOut = () => {
+    localStorage.removeItem('duel_vault_user');
+    setUser(null);
+    // Redirect to login view on sign out
+    window.location.hash = '#login';
+  };
+
+  return { user, loading, signIn, signOut };
+};
+
+const AuthProvider = ({ children }) => {
+  const auth = useAuth();
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+};
+
+const useCurrentUser = () => useContext(AuthContext);
+
+// --- Navigation and Routing ---
+
+const NAV_VIEWS = {
+  DASHBOARD: 'dashboard',
+  DECK_BUILDER: 'deck-builder',
+  LOGIN: 'login',
+};
+
+const Header = ({ currentView, setView }) => {
+  const { user, signOut } = useCurrentUser();
+
+  return (
+    <header className="flex justify-between items-center p-4 bg-gray-900 shadow-lg border-b border-yellow-500">
+      <h1 className="text-3xl font-extrabold text-yellow-400 tracking-wider">
+         Duelisting
+      </h1>
+      <nav className="flex space-x-6 items-center">
+        {user ? (
+          <>
+            <button
+              onClick={() => setView(NAV_VIEWS.DASHBOARD)}
+              className={`text-lg font-medium transition duration-200 ${currentView === NAV_VIEWS.DASHBOARD ? 'text-white border-b-2 border-yellow-500' : 'text-gray-400 hover:text-yellow-300'}`}
+            >
+              My Decks
+            </button>
+            <button
+              onClick={() => signOut()}
+              className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-200"
+            >
+              Logout ({user.name})
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setView(NAV_VIEWS.LOGIN)}
+            className={`text-lg font-medium transition duration-200 ${currentView === NAV_VIEWS.LOGIN ? 'text-white border-b-2 border-yellow-500' : 'text-gray-400 hover:text-yellow-300'}`}
+            >
+            Login/Register
+          </button>
+        )}
+      </nav>
+    </header>
+  );
+};
+
+// --- View Components ---
+
+const LoginForm = ({ setView }) => {
+  const { signIn } = useCurrentUser();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (username && password) {
+      signIn(username);
+      setView(NAV_VIEWS.DASHBOARD);
+    }
+  };
+
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-gray-800">
+      <div className="w-full max-w-md p-8 space-y-6 bg-gray-900 rounded-xl shadow-2xl border border-gray-700">
+        <h2 className="text-3xl font-bold text-center text-yellow-400">
+          {isRegister ? 'Register' : 'Sign In'}
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-gray-700 text-white focus:ring-yellow-500 focus:border-yellow-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-gray-700 text-white focus:ring-yellow-500 focus:border-yellow-500"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full py-2 bg-yellow-600 text-gray-900 font-bold rounded-lg shadow-md hover:bg-yellow-500 transition duration-200"
+          >
+            {isRegister ? 'Register Account' : 'Login to Duelisting'}
+          </button>
+        </form>
+        <div className="text-center text-sm">
+          <button
+            onClick={() => setIsRegister(!isRegister)}
+            className="text-yellow-400 hover:text-yellow-300 transition duration-200"
+          >
+            {isRegister ? 'Already have an account? Sign In' : 'Need an account? Register Here'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Dashboard = ({ setView }) => {
+  const { user } = useCurrentUser();
+  const mockDecks = [
+    { id: 1, name: 'Zombie Deck', modified: '2025-10-28', cards: 40 },
+    { id: 2, name: 'Dragon Deck', modified: '2025-10-25', cards: 42 },
+  ];
+
+
+  if (!user) {
+    return <p className="text-white text-center p-8">Please log in to view your decks.</p>;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-800 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h2 className="text-4xl font-extrabold text-white mb-6">
+          Welcome, <span className="text-yellow-400">{user.name}</span>!
+        </h2>
+
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-semibold text-gray-200">My Decks ({mockDecks.length})</h3>
+          <button
+            onClick={() => setView(NAV_VIEWS.DECK_BUILDER)}
+            className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-xl hover:bg-green-700 transition duration-200"
+          >
+            + New Deck
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {mockDecks.map(deck => (
+            <div
+              key={deck.id}
+              className="flex justify-between items-center p-4 bg-gray-700 rounded-lg shadow-lg hover:shadow-yellow-500/30 transition duration-300"
+            >
+              <div>
+                <p className="text-xl font-bold text-white">{deck.name}</p>
+                <p className="text-sm text-gray-400">
+                  {deck.cards} Cards • Last Modified: {deck.modified}
+                </p>
+              </div>
+              <div className="space-x-2">
+                <button className="px-3 py-1 bg-yellow-600 text-gray-900 font-medium rounded hover:bg-yellow-500">
+                  View/Edit
+                </button>
+                {user.role === 'admin' && (
+                    <button className="px-3 py-1 bg-red-600 text-white font-medium rounded hover:bg-red-500">
+                        Admin Delete
+                    </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DeckBuilder = () => {
+  const { user } = useCurrentUser();
+  if (!user) {
+    return <p className="text-white text-center p-8">Please log in to build decks.</p>;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-800 p-8">
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-4xl font-extrabold text-white mb-6 border-b pb-2 border-gray-600">
+          Deck Builder: New Strategy
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Left Column: Card Search */}
+          <div className="md:col-span-2 p-4 bg-gray-900 rounded-xl shadow-lg border border-gray-700">
+            <h3 className="text-2xl font-bold text-yellow-400 mb-4">Card Library</h3>
+            <input
+              type="text"
+              placeholder="Search for cards (e.g., Pot of Greed)"
+              className="w-full px-4 py-2 mb-4 border border-gray-600 rounded-lg bg-gray-700 text-white focus:ring-yellow-500 focus:border-yellow-500"
+            />
+            <div className="h-96 overflow-y-auto space-y-2">
+              <div className="p-3 bg-gray-800 rounded-md text-white border-l-4 border-yellow-500 flex justify-between items-center">
+                <span className="font-semibold">Dark Magician</span>
+                <button className="px-2 py-1 text-sm bg-green-600 rounded hover:bg-green-700">Add</button>
+              </div>
+              <div className="p-3 bg-gray-800 rounded-md text-white border-l-4 border-red-500 flex justify-between items-center">
+                <span className="font-semibold">Mirror Force</span>
+                <button className="px-2 py-1 text-sm bg-green-600 rounded hover:bg-green-700">Add</button>
+              </div>
+              <p className="text-gray-400 p-2">... more search results</p>
+            </div>
+          </div>
+          {/* Right Column: Current Deck */}
+          <div className="p-4 bg-gray-900 rounded-xl shadow-lg border border-gray-700">
+            <h3 className="text-2xl font-bold text-yellow-400 mb-4">Current Deck</h3>
+            <div className="mb-4 p-3 bg-gray-700 rounded-lg text-white font-mono">
+              <p>Total Cards: <span className="text-green-400">40 / 60</span></p>
+              <p>Monsters: <span className="text-blue-400">18</span></p>
+              <p>Spells: <span className="text-yellow-400">12</span></p>
+              <p>Traps: <span className="text-red-400">10</span></p>
+            </div>
+            <div className="h-96 overflow-y-auto space-y-1">
+              <p className="text-gray-300">3x Blue-Eyes White Dragon</p>
+              <p className="text-gray-300">1x Exodia the Forbidden One</p>
+              <p className="text-gray-400">... deck list continues</p>
+            </div>
+            <button className="w-full mt-4 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-200">
+              Save Deck Securely
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main App Component ---
+
+const App = () => {
+  const [currentView, setCurrentView] = useState(NAV_VIEWS.DASHBOARD);
+  const { user, loading } = useCurrentUser();
+
+  // Simple routing based on user state and hash for the prototype
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash && NAV_VIEWS[hash.toUpperCase()]) {
+        setCurrentView(NAV_VIEWS[hash.toUpperCase()]);
+    } else if (!user && !loading) {
+        setCurrentView(NAV_VIEWS.LOGIN);
+    }
+  }, [user, loading]);
+
+  const setView = (view) => {
+    window.location.hash = `#${view}`;
+    setCurrentView(view);
+  };
+
+
+  let Content;
+  if (loading) {
+      Content = <div className="text-white text-center p-8 text-2xl">Loading Auth State...</div>;
+  } else if (!user || currentView === NAV_VIEWS.LOGIN) {
+      Content = <LoginForm setView={setView} />;
+  } else if (currentView === NAV_VIEWS.DECK_BUILDER) {
+      Content = <DeckBuilder />;
+  } else {
+      Content = <Dashboard setView={setView} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-800 font-sans">
+      <Header currentView={currentView} setView={setView} />
+      <main>
+        {Content}
+      </main>
+    </div>
+  );
+};
+
+// This wrapper is needed to provide the Auth Context
+const DuelistingApp = () => (
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+);
+
+export default DuelistingApp;
+
+
